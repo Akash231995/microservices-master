@@ -1,0 +1,62 @@
+version: '3.8'
+services:
+  ms-postgres:
+    image: postgres:11.16-alpine
+    container_name: ms-postgres
+    volumes:
+      - ms-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_DB=ms
+      - POSTGRES_USER=msuser
+      - POSTGRES_PASSWORD=msadmin
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - 9411:9411
+  discovery:
+    build:
+      context: ./ms-discoveryserer
+      dockerfile: Dockerfile
+    container_name: ms-discoveryserer
+    ports:
+      - 8761:8761
+  movie-service:
+    build:
+      context: ./movie-service
+      dockerfile: Dockerfile
+    container_name: movie-service
+    depends_on:
+      - ms-postgres
+      - discovery
+    environment:
+      - DB_SERVER=ms-postgres
+      - POSTGRES_DB=ms
+      - POSTGRES_USER=msuser
+      - POSTGRES_PASSWORD=msadmin
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery:8761/eureka
+      - ZIPKIN_SERVER_ENDPOINT=http://zipkin:9411/
+    ports:
+      - 8080:8080
+  review-service:
+    build:
+      context: ./review-service
+      dockerfile: Dockerfile
+    container_name: review-service
+    depends_on:
+      - ms-postgres
+      - discovery
+    environment:
+      - DB_SERVER=ms-postgres
+      - POSTGRES_DB=ms
+      - POSTGRES_USER=msuser
+      - POSTGRES_PASSWORD=msadmin
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery:8761/eureka
+      - ZIPKIN_SERVER_ENDPOINT=http://zipkin:9411/
+    ports:
+      - 8081:8081
+volumes:
+  ms-data:
+
